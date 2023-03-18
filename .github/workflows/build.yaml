@@ -9,6 +9,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres
+        # Provide the password for postgres
+        env:
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: postgres_db
+          POSTGRES_USER: postgres_user
+          POSTGRES_PASSWORD: postgres_password
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps tcp port 5432 on service container to the host
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v1.1.1
@@ -22,3 +44,11 @@ jobs:
       # Scan the code for syntax errors and style issues. If
       # you want to use a custom linter configuration you can add a configuration file with --config <myconfig>
       - run: deno lint
+
+      - run: deno task test
+        env:
+          PGHOST: postgres
+          PGPORT: 5432
+          PGDATABASE: postgres_db
+          PGUSER: postgres_user
+          PGPASSWORD: postgres_password
