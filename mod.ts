@@ -1,11 +1,11 @@
-import { Connection } from "./deps.ts";
+import { Connection } from './deps.ts';
 import {
   Query,
   QueryArrayResult,
   QueryObjectResult,
   QueryResult,
   ResultType,
-} from "./deps.ts";
+} from './deps.ts';
 
 let transactionId = 0;
 let connection: Connection | undefined;
@@ -16,7 +16,7 @@ const { startup, query } = Connection.prototype;
 export const patchPostgresForTransactions = () => {
   Connection.prototype.startup = function (
     this: Connection,
-    is_reconnection: boolean
+    is_reconnection: boolean,
   ) {
     if (!connection) {
       connection = this;
@@ -27,40 +27,40 @@ export const patchPostgresForTransactions = () => {
 
   Connection.prototype.query = async function (
     this: Connection,
-    queryArg: Query<ResultType>
+    queryArg: Query<ResultType>,
   ): Promise<QueryResult> {
-    console.log("starting query", queryArg.text);
-    console.log("prependStartTranscation", prependStartTransaction);
+    console.log('starting query', queryArg.text);
+    console.log('prependStartTranscation', prependStartTransaction);
     if (prependStartTransaction) {
       prependStartTransaction = false;
-      await this.query(new Query("BEGIN", ResultType.ARRAY));
+      await this.query(new Query('BEGIN', ResultType.ARRAY));
     }
 
     const sql = queryArg.text.trim().toUpperCase();
     let replacingSql: string | undefined;
 
-    if (sql.startsWith("START TRANSACTION") || sql.startsWith("BEGIN")) {
+    if (sql.startsWith('START TRANSACTION') || sql.startsWith('BEGIN')) {
       if (transactionId > 0) {
         replacingSql = `SAVEPOINT "${transactionId++}"`;
       } else {
         transactionId = 1;
       }
     } else {
-      const isCommit = sql.startsWith("COMMIT");
-      const isRollback = !isCommit && sql.startsWith("ROLLBACK");
+      const isCommit = sql.startsWith('COMMIT');
+      const isRollback = !isCommit && sql.startsWith('ROLLBACK');
       if (isCommit || isRollback) {
         if (transactionId === 0) {
           throw new Error(
             `Trying to ${
-              isCommit ? "COMMIT" : "ROLLBACK"
-            } outside of transaction`
+              isCommit ? 'COMMIT' : 'ROLLBACK'
+            } outside of transaction`,
           );
         }
 
         if (transactionId > 1) {
           const savePoint = --transactionId;
           replacingSql = `${
-            isCommit ? "RELEASE" : "ROLLBACK TO"
+            isCommit ? 'RELEASE' : 'ROLLBACK TO'
           } SAVEPOINT "${savePoint}"`;
         } else {
           transactionId = 0;
@@ -73,17 +73,18 @@ export const patchPostgresForTransactions = () => {
       console.log(`modified sql ${sql} => ${queryArg.text}`);
     }
 
-    console.log("running query", queryArg.text);
+    console.log('running query', queryArg.text);
     const response = await query.call(this, queryArg);
-    console.log("query complete", queryArg.text);
+    console.log('query complete', queryArg.text);
     return response;
-  } as ((
-    this: Connection,
-    queryArg: Query<ResultType.ARRAY>
-  ) => Promise<QueryArrayResult>) &
-    ((
+  } as
+    & ((
       this: Connection,
-      queryArg: Query<ResultType.OBJECT>
+      queryArg: Query<ResultType.ARRAY>,
+    ) => Promise<QueryArrayResult>)
+    & ((
+      this: Connection,
+      queryArg: Query<ResultType.OBJECT>,
     ) => Promise<QueryObjectResult>);
 };
 
@@ -101,6 +102,6 @@ export const startTransaction = () => {
 
 export const rollbackTransaction = async () => {
   if (transactionId > 0) {
-    await connection?.query(new Query("ROLLBACK", ResultType.ARRAY));
+    await connection?.query(new Query('ROLLBACK', ResultType.ARRAY));
   }
 };
