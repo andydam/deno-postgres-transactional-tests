@@ -29,8 +29,6 @@ export const patchPostgresForTransactions = () => {
     this: Connection,
     queryArg: Query<ResultType>,
   ): Promise<QueryResult> {
-    console.log('starting query', queryArg.text);
-    console.log('prependStartTranscation', prependStartTransaction);
     if (prependStartTransaction) {
       prependStartTransaction = false;
       await this.query(new Query('BEGIN', ResultType.ARRAY));
@@ -70,12 +68,9 @@ export const patchPostgresForTransactions = () => {
 
     if (replacingSql) {
       queryArg.text = replacingSql;
-      console.log(`modified sql ${sql} => ${queryArg.text}`);
     }
 
-    console.log('running query', queryArg.text);
     const response = await query.call(this, queryArg);
-    console.log('query complete', queryArg.text);
     return response;
   } as
     & ((
