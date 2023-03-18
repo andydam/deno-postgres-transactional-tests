@@ -47,7 +47,7 @@ jobs:
 
       - run: deno task test
         env:
-          PGHOST: postgres
+          PGHOST: localhost
           PGPORT: 5432
           PGDATABASE: postgres_db
           PGUSER: postgres_user
