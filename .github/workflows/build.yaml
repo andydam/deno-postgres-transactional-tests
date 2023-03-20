@@ -6,49 +6,57 @@ on:
   pull_request:
     branches: [ "master" ]
 
+env:
+  DENO_DIR: .cache
+  DENO_VERSION: v1.x
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: postgres_db
+  POSTGRES_USER: postgres_user
+  POSTGRES_PASSWORD: postgres_password
+
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     services:
-      # Label used to access the service container
       postgres:
-        # Docker Hub image
         image: postgres
-        # Provide the password for postgres
         env:
-          POSTGRES_PORT: 5432
-          POSTGRES_DB: postgres_db
-          POSTGRES_USER: postgres_user
-          POSTGRES_PASSWORD: postgres_password
-        # Set health checks to wait until postgres has started
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          # Maps tcp port 5432 on service container to the host
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: denoland/setup-deno@v1.1.1
+      - name: Checkout branch
+        uses: actions/checkout@v3
+      - name: Use Deno version ${{ env.DENO_VERSION }}
+        uses: denoland/setup-deno@v1.1.1
         with:
-          deno-version: v1.x # Run with latest stable Deno.
-
-      # Check if the code is formatted according to Deno's default
-      # formatting conventions.
-      - run: deno fmt --check
-
-      # Scan the code for syntax errors and style issues. If
-      # you want to use a custom linter configuration you can add a configuration file with --config <myconfig>
-      - run: deno lint
-
-      - run: deno task test
+          deno-version: ${{ env.DENO_VERSION }}
+      - name: Check formatting
+        run: deno fmt --check
+      - name: Check linting
+        run: deno lint
+      - name: Cache Deno dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.DENO_DIR }}
+          key: ${{ hashFiles('deno.lock') }}
+      - name: Typecheck
+        run: deno check mod.ts
+      - name: Run tests
+        run: deno task test
         env:
           PGHOST: localhost
-          PGPORT: 5432
-          PGDATABASE: postgres_db
-          PGUSER: postgres_user
-          PGPASSWORD: postgres_password
+          PGPORT: ${{ env.POSTGRES_PORT }}
+          PGDATABASE: ${{ env.POSTGRES_DB }}
+          PGUSER: ${{ env.POSTGRES_USER }}
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
