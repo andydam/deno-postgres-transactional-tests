@@ -1,0 +1,10 @@
+{
+  "fmt": {
+    "options": {
+      "singleQuote": true
+    }
+  },
+  "tasks": {
+    "test": "deno test --allow-env --allow-net --trace-ops"
+  }
+}

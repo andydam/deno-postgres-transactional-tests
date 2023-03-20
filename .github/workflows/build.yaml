@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  DENO_DIR: .cache
+  DENO_VERSION: v1.x
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: postgres_db
+  POSTGRES_USER: postgres_user
+  POSTGRES_PASSWORD: postgres_password
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+      - name: Use Deno version ${{ env.DENO_VERSION }}
+        uses: denoland/setup-deno@v1.1.1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      - name: Check formatting
+        run: deno fmt --check
+      - name: Check linting
+        run: deno lint
+      - name: Cache Deno dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.DENO_DIR }}
+          key: ${{ hashFiles('deno.lock') }}
+      - name: Typecheck
+        run: deno check mod.ts
+      - name: Run tests
+        run: deno task test
+        env:
+          PGHOST: localhost
+          PGPORT: ${{ env.POSTGRES_PORT }}
+          PGDATABASE: ${{ env.POSTGRES_DB }}
+          PGUSER: ${{ env.POSTGRES_USER }}
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
