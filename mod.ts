@@ -22,16 +22,20 @@ export const patchPostgresForTransactions = () => {
       connection = this;
     }
 
-    return startup.call(this, is_reconnection);
+    return startup.call(connection, is_reconnection);
   };
 
   Connection.prototype.query = async function (
     this: Connection,
     queryArg: Query<ResultType>,
   ): Promise<QueryResult> {
+    if (!connection) {
+      throw new Error('Connection not connected yet!');
+    }
+
     if (prependStartTransaction) {
       prependStartTransaction = false;
-      await this.query(new Query('BEGIN', ResultType.ARRAY));
+      await connection.query(new Query('BEGIN', ResultType.ARRAY));
     }
 
     const sql = queryArg.text.trim().toUpperCase();
@@ -70,7 +74,7 @@ export const patchPostgresForTransactions = () => {
       queryArg.text = replacingSql;
     }
 
-    const response = await query.call(this, queryArg);
+    const response = await query.call(connection, queryArg);
     return response;
   } as
     & ((
