@@ -5,6 +5,7 @@ import {
   assertRejects,
   beforeAll,
   beforeEach,
+  Client,
   describe,
   it,
   Pool,
@@ -27,11 +28,12 @@ patchPostgresForTransactions();
 const insertSql = `INSERT INTO sample ("text") VALUES ('value')`;
 
 describe('postgres-transactional-tests', () => {
+  const client = new Client();
   let pool: Pool;
   let poolClient: PoolClient;
 
   const getCount = async () => {
-    const { rows: [{ count }] } = await poolClient.queryObject<
+    const { rows: [{ count }] } = await client.queryObject<
       { count: number }
     >(
       'SELECT COUNT(*) FROM sample',
@@ -40,16 +42,18 @@ describe('postgres-transactional-tests', () => {
   };
 
   beforeAll(async () => {
+    await client.connect();
     pool = new Pool(undefined, 1, true);
     poolClient = await pool.connect();
-    await poolClient.queryObject(
-      `CREATE TABLE IF NOT EXISTS sample ("text" text)`,
+    await client.queryObject(
+      `CREATE TABLE sample ("text" text)`,
     );
   });
   afterAll(async () => {
-    await poolClient.queryObject(`DROP TABLE IF EXISTS sample`);
+    await client.queryObject(`DROP TABLE sample`);
     await poolClient.release();
     await pool.end();
+    await client.end();
   });
 
   describe('patch database client', () => {
@@ -60,7 +64,7 @@ describe('postgres-transactional-tests', () => {
 
     it('should leave db empty after running this test', async () => {
       await Promise.all([
-        poolClient.queryObject(insertSql),
+        client.queryObject(insertSql),
         poolClient.queryObject(insertSql),
       ]);
       const count = await getCount();
@@ -75,7 +79,7 @@ describe('postgres-transactional-tests', () => {
     describe('nested describe', () => {
       beforeAll(async () => {
         await startTransaction();
-        await poolClient.queryObject(insertSql);
+        await client.queryObject(insertSql);
       });
 
       afterAll(async () => {
@@ -89,10 +93,10 @@ describe('postgres-transactional-tests', () => {
     });
 
     it('should support nested transactions, case insensitive', async () => {
-      await poolClient.queryObject('STaRT TRANSaCTION');
-      await poolClient.queryObject('COmMIT');
-      await poolClient.queryObject('BeGiN');
-      await poolClient.queryObject('ROLlBaCK');
+      await client.queryObject('STaRT TRANSaCTION');
+      await client.queryObject('COmMIT');
+      await client.queryObject('BeGiN');
+      await client.queryObject('ROLlBaCK');
     });
 
     it('should still have an empty db', async () => {

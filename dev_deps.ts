@@ -1,4 +1,8 @@
-export { Pool, PoolClient } from 'https://deno.land/x/postgres@v0.17.0/mod.ts';
+export {
+  Client,
+  Pool,
+  PoolClient,
+} from 'https://deno.land/x/postgres@v0.17.0/mod.ts';
 export {
   assertEquals,
   assertRejects,
